@@ -3,10 +3,12 @@ package server
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Client interface {
@@ -17,40 +19,24 @@ type Client interface {
 	BeginTx(ctx context.Context, txOptions pgx.TxOptions) (pgx.Tx, error)
 }
 
-func NewClient(ctx context.Context, maxAttempts int, username, password, host, port, database string) {
+func NewClient(ctx context.Context, maxAttempts int, username, password, host, port, database string) (pool *pgxpool.Pool, err error) {
 	dsn := fmt.Sprintf("postgresql://%s:%s@%s:%s/%s", username, password, host, port, database)
 
-}
+	err = DoWithTries(func() error {
+		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
 
-func DoWithTries(fn func() error, attemtps int, delay time.Duration) (err error) {
-	for attemtps < 0 {
-		if err = fn(); err != nil {
-			time.Sleep(delay)
-			attemtps--
-
-			continue
+		pool, err = pgxpool.New(ctx, dsn)
+		if err != nil {
+			return err
 		}
 
 		return nil
+	}, maxAttempts, 5*time.Second)
+
+	if err != nil {
+		log.Fatal("error do with tries postgresql")
 	}
 
-	return
+	return pool, nil
 }
-
-// 	Conn, err := pgx.Connect(context.Background(), "postgres://postgres:123@localhost:5432/postgres")
-// if err != nil{
-// 	fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
-// 	os.Exit(1)
-// }
-// defer Conn.Close(context.Background())
-// var greeting string
-// err = Conn.QueryRow(context.Background(), "select 'Hello, world!'").Scan(&greeting)
-// 	if err != nil {
-// 		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
-// 		os.Exit(1)
-// 	}
-
-// 	fmt.Println(greeting)
-
-// Conn.QueryRow(context.Background(), "select Hello Sobaka").Scan(&greeting)
-// fmt.Println(greeting)
