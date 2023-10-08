@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"main/app/model"
 	"time"
 
 	"github.com/jackc/pgconn"
@@ -19,8 +20,8 @@ type Client interface {
 	BeginTx(ctx context.Context, txOptions pgx.TxOptions) (pgx.Tx, error)
 }
 
-func NewClient(ctx context.Context, maxAttempts int, username, password, host, port, database string) (pool *pgxpool.Pool, err error) {
-	dsn := fmt.Sprintf("postgresql://%s:%s@%s:%s/%s", username, password, host, port, database)
+func NewClient(ctx context.Context, maxAttempts int, sc model.StorageConfig) (pool *pgxpool.Pool, err error) {
+	dsn := fmt.Sprintf("postgresql://%s:%s@%s:%s/%s", sc.Username, sc.Password, sc.Host, sc.Port, sc.Database)
 
 	err = DoWithTries(func() error {
 		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
